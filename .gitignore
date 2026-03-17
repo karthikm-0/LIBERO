@@ -12,6 +12,7 @@ clip/
 gpt/
 bert/
 logs/
+demonstration_data/
 
 *.mp4
 libero.egg-info/
