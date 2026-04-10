@@ -282,6 +282,9 @@ def _worker(
                 p.send(env.get_segmentation_of_interest(data))
             elif cmd == "get_sim_state":
                 p.send(env.get_sim_state())
+            elif cmd == "set_sim_state":
+                env.set_state(data)
+                p.send(True)
             elif cmd == "set_init_state":
                 obs = env.set_init_state(data)
                 p.send(obs)
@@ -345,6 +348,10 @@ class DummyEnvWorker(EnvWorker):
 
     def get_sim_state(self):
         return self.env.get_sim_state()
+
+    def set_sim_state(self, sim_state):
+        self.env.set_state(sim_state)
+        return True
 
     def set_init_state(self, init_state):
         return self.env.set_init_state(init_state)
@@ -499,6 +506,10 @@ class SubprocEnvWorker(EnvWorker):
 
     def get_sim_state(self):
         self.parent_remote.send(["get_sim_state", None])
+        return self.parent_remote.recv()
+
+    def set_sim_state(self, sim_state):
+        self.parent_remote.send(["set_sim_state", sim_state])
         return self.parent_remote.recv()
 
     def set_init_state(self, init_state):
@@ -946,6 +957,14 @@ class SubprocVectorEnv(BaseVectorEnv):
 
     def get_sim_state(self):
         return [w.get_sim_state() for w in self.workers]
+
+    def set_sim_state(self, sim_states):
+        self._assert_is_not_closed()
+        if not isinstance(sim_states, list):
+            sim_states = [sim_states] * len(self.workers)
+        for i, worker in enumerate(self.workers):
+            worker.parent_remote.send(["set_sim_state", sim_states[i]])
+        return [worker.parent_remote.recv() for worker in self.workers]
 
     def set_init_state(
         self,
